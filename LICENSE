@@ -1,0 +1,11 @@
+
+This README is **submission-ready**.
+
+---
+
+## 🧪 STEP 5: QUICK LOCAL CHECK (IMPORTANT)
+
+Before GitHub, confirm:
+
+```bash
+python -m streamlit run app.py
