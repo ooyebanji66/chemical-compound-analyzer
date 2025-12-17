@@ -3,17 +3,16 @@ import requests
 import base64
 import os
 
-# --------------------------------------------------
-# Environment Detection
-# --------------------------------------------------
-# Streamlit Cloud does NOT support running Ollama
+# ==================================================
+# Automatic Streamlit Cloud Detection
+# ==================================================
 IS_CLOUD = os.getenv("STREAMLIT_SERVER_RUNNING") == "1"
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 
-# --------------------------------------------------
-# Ollama Helper Function (LOCAL ONLY)
-# --------------------------------------------------
+# ==================================================
+# Ollama Helper (LOCAL ONLY)
+# ==================================================
 def call_ollama(model: str, prompt: str, image_bytes: bytes = None):
     payload = {
         "model": model,
@@ -29,45 +28,26 @@ def call_ollama(model: str, prompt: str, image_bytes: bytes = None):
     return response.json().get("response", "")
 
 
-# --------------------------------------------------
+# ==================================================
 # LLaVA Image Analysis (LOCAL ONLY)
-# --------------------------------------------------
-def analyze_image(image_bytes: bytes):
-    # ---------------- STREAMLIT CLOUD ----------------
-    if IS_CLOUD:
-        return (
-            "⚠️ **Cloud Demo Mode Enabled**\n\n"
-            "This application uses locally hosted Ollama models "
-            "(LLaVA + Gemma), which cannot run on Streamlit Cloud.\n\n"
-            "Below is a representative academic demonstration output.\n\n"
-            "---\n\n"
-            "### Chemical Characterization of Hexane (C₆H₁₄)\n\n"
-            "Hexane is a saturated hydrocarbon consisting solely of carbon "
-            "and hydrogen atoms arranged in a straight-chain alkane structure. "
-            "All interatomic bonds are single covalent σ-bonds, indicating full "
-            "saturation and the absence of functional groups. Due to its "
-            "non-polar nature, low reactivity, and high volatility, hexane is "
-            "widely used as an industrial solvent, particularly in extraction, "
-            "cleaning, and fuel formulation processes."
-        )
+# ==================================================
+def analyze_image_with_llava(image_bytes: bytes):
+    prompt = (
+        "Analyze the uploaded chemical compound image and identify the "
+        "elements present, functional groups, bond types, molecular nature, "
+        "and possible industrial or laboratory uses."
+    )
 
-    # ---------------- LOCAL MODE ----------------
-    try:
-        llava_result = analyze_image_with_llava(image_bytes)
-        final_result = refine_with_gemma(llava_result)
-        return final_result
-    except Exception:
-        return (
-            "⚠️ **Ollama Not Running (Local Mode)**\n\n"
-            "Please start Ollama locally using:\n\n"
-            "`ollama serve`\n\n"
-            "and ensure the required models are installed."
-        )
+    return call_ollama(
+        model="llava:latest",
+        prompt=prompt,
+        image_bytes=image_bytes,
+    )
 
 
-# --------------------------------------------------
+# ==================================================
 # Gemma Refinement (LOCAL ONLY)
-# --------------------------------------------------
+# ==================================================
 def refine_with_gemma(text: str):
     prompt = (
         "Rewrite the following chemical analysis in a formal academic tone, "
@@ -81,32 +61,29 @@ def refine_with_gemma(text: str):
     )
 
 
-# --------------------------------------------------
-# Unified Analysis Function (SAFE FOR CLOUD)
-# --------------------------------------------------
+# ==================================================
+# Unified Analysis Function (CLOUD SAFE)
+# ==================================================
 def analyze_image(image_bytes: bytes):
-    # ---------------- CLOUD DEMO MODE ----------------
+    # -------- STREAMLIT CLOUD MODE --------
     if IS_CLOUD:
         return (
             "⚠️ **Cloud Demo Mode Enabled**\n\n"
             "This application relies on locally hosted Ollama models "
-            "(LLaVA + Gemma), which cannot be executed within Streamlit Cloud "
-            "environments due to GPU and system-level constraints.\n\n"
-            "Below is a representative academic-style output demonstrating "
-            "the expected analysis format.\n\n"
+            "(LLaVA + Gemma), which cannot be executed within Streamlit Cloud.\n\n"
+            "The output below demonstrates the expected academic format.\n\n"
             "---\n\n"
             "### Chemical Characterization of Hexane (C₆H₁₄)\n\n"
             "Hexane is a saturated hydrocarbon composed exclusively of carbon "
-            "and hydrogen atoms arranged in a linear alkane structure. All "
-            "interatomic bonds are single covalent σ-bonds, indicating full "
-            "saturation and the absence of functional groups. This structural "
-            "simplicity classifies hexane as non-polar and chemically stable. "
-            "Due to its low reactivity and high volatility, hexane is widely "
-            "utilized as an industrial solvent, particularly in extraction "
-            "processes, cleaning applications, and fuel blending operations."
+            "and hydrogen atoms arranged in a straight-chain alkane structure. "
+            "All interatomic bonds are single covalent σ-bonds, confirming full "
+            "saturation and the absence of functional groups. Due to its "
+            "non-polar nature, low reactivity, and high volatility, hexane is "
+            "widely employed as an industrial solvent in extraction, cleaning, "
+            "and fuel blending processes."
         )
 
-    # ---------------- LOCAL OLLAMA MODE ----------------
+    # -------- LOCAL MODE --------
     try:
         llava_result = analyze_image_with_llava(image_bytes)
         final_result = refine_with_gemma(llava_result)
@@ -114,16 +91,19 @@ def analyze_image(image_bytes: bytes):
     except Exception as e:
         return (
             "❌ **Failed to communicate with Ollama**\n\n"
-            "Ensure that Ollama is running locally and that the required "
-            "models are installed.\n\n"
+            "Ensure that Ollama is running locally and the required models "
+            "are installed.\n\n"
             f"**Error details:** {e}"
         )
 
 
-# --------------------------------------------------
+# ==================================================
 # Streamlit UI
-# --------------------------------------------------
-st.set_page_config(page_title="Chemical Compound Image Analyzer", layout="centered")
+# ==================================================
+st.set_page_config(
+    page_title="Chemical Compound Image Analyzer",
+    layout="centered"
+)
 
 st.title("🧪 Chemical Compound Image Analyzer")
 st.caption("Powered by Ollama (LLaVA + Gemma)")
@@ -134,7 +114,11 @@ uploaded_file = st.file_uploader(
 )
 
 if uploaded_file:
-    st.image(uploaded_file, caption="Uploaded Chemical Compound", use_column_width=True)
+    st.image(
+        uploaded_file,
+        caption="Uploaded Chemical Compound",
+        width=700
+    )
 
     with st.spinner("Analyzing compound..."):
         result = analyze_image(uploaded_file.getvalue())
